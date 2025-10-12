@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Customer Satisfaction Survey</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-index">
+  <div class="container">
+    <h1>Customer Satisfaction Feedback</h1>
+    <form onsubmit="handleSubmit(event)" class="form">
+      <label for="phone">Enter your Phone Number:</label>
+      <div class="input-group">
+        <span class="prefix">+971</span>
+        <input type="tel" id="phone" name="phone" required pattern="[0-9]{9}" placeholder="5XXXXXXXX" />
+      </div>
+      <button type="submit" class="btn">Continue</button>
+    </form>
+  </div>
+
+  <script src="assets/js/script.js"></script>
+</body>
+</html>

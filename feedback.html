@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Feedback Suggestions</title>
+  <link rel="stylesheet" href="./assets/css/style.css" />
+</head>
+<body class="page-feedback">
+  <div class="container">
+    <h1>Please share your suggestions</h1>
+
+    <form onsubmit="handleFeedbackSubmit(event)" class="form">
+      <textarea id="feedback" placeholder="Write your feedback here..." required></textarea>
+      <br/>
+      <button type="submit" class="btn">Submit</button>
+    </form>
+  </div>
+
+  <div id="loadingOverlay" class="overlay" aria-hidden="true">
+    <div class="spinner"></div>
+    <p>Please wait...</p>
+  </div>
+
+  <script src="./assets/js/script.js"></script>
+</body>
+</html>
