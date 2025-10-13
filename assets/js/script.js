@@ -24,7 +24,7 @@ function handleSubmit(event) {
     alert('Please enter a valid 9-digit phone number (5XXXXXXXX).');
     return;
   }
-  const fullPhone = '+971' + raw;
+  const fullPhone = '+971-' + raw;
   sessionStorage.setItem('phoneNumber', fullPhone);
   window.location.href = 'survey.html';
 }
