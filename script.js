@@ -41,27 +41,42 @@ async function submitSurvey(status) {
   showLoading();
 
   try {
-    const res = await fetch('/api/leadsquared', {
+    // CHANGE 1: Use window.location.origin to build the absolute path
+    const apiUrl = `${window.location.origin}/api/leadsquared`;
+    
+    const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, status })
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(()=>null);
-      console.error('Server error', err);
-      alert('Submission failed. Please try again.');
-      hideLoading();
-      return;
-    }
+    // ... (error handling)
+} catch (e) {
+    // ...
+}
+}
 
-    // Success — redirect to thank you
-    window.location.href = 'thankyou.html';
-  } catch (e) {
-    console.error(e);
-    alert('Network error. Please try again.');
-    hideLoading();
-  }
+
+/* feedback.html: submit feedback */
+async function handleFeedbackSubmit(event) {
+    // ... (setup code)
+
+    showLoading();
+
+    try {
+        // CHANGE 2: Use window.location.origin to build the absolute path
+        const apiUrl = `${window.location.origin}/api/leadsquared`;
+        
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, status: 'Unsatisfied', feedback })
+        });
+        
+        // ... (error handling)
+    } catch (e) {
+        // ...
+    }
 }
 
 /* feedback.html: submit feedback */
