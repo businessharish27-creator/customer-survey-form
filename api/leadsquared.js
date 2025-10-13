@@ -13,8 +13,8 @@ export default async function handler(req, res) {
 
     // Build LeadSquared payload: array of Attribute/Value objects
     const payload = [
-      { Attribute: "Phone Number", Value: phone },
-      { Attribute: "SearchBy", Value: "Phone Number" }
+      { Attribute: "Phone", Value: phone },
+      { Attribute: "SearchBy", Value: "Phone" }
     ];
 
     if (status) {
