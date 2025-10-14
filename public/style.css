@@ -76,7 +76,7 @@ textarea { width:100%; max-width:600px; height:200px; padding:15px; font-size:16
 .refresh-btn:hover { background:#d4b76b; transform: rotate(90deg); }
 
 /* responsive */
-@media (max-width:768px) {
+@media (max-width:400px) {
   .emoji { font-size:4.5rem; }
   .emoji-row { gap:40px; flex-direction:column; }
   h1 { font-size:1.6rem; margin-bottom:1rem; }
