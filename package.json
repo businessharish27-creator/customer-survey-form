@@ -1,0 +1,11 @@
+{
+  "name": "customer-survey",
+  "version": "1.0.0",
+  "description": "Customer Satisfaction Survey integrated with LeadSquared API",
+  "main": "api/leadsquared.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {},
+  "license": "MIT"
+}
