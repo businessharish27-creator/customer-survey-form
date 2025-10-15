@@ -4,7 +4,7 @@
 /* containers */
 .container {
   width: 100%;
-  max-width: 900px;
+  max-width: 1140px;
   margin: 0 auto;
   padding: 40px;
   display:flex;

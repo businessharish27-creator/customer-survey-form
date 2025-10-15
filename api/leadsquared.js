@@ -1,4 +1,5 @@
 // api/leadsquared.js
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -11,9 +12,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing phone' });
     }
 
-    // Build LeadSquared payload: array of Attribute/Value objects
+    // Format phone as +971-XXXXXXXXX (9 digits)
+    const formattedPhone = phone.replace(/^0+/, ''); // remove leading zeros
+    const phoneNumber = `+971-${formattedPhone.slice(-9)}`;
+
+    // Build LeadSquared payload
     const payload = [
-      { Attribute: "Phone", Value: phone },
+      { Attribute: "Phone", Value: phoneNumber },
       { Attribute: "SearchBy", Value: "Phone" }
     ];
 
@@ -24,28 +29,51 @@ export default async function handler(req, res) {
       payload.push({ Attribute: "mx_feedback", Value: feedback });
     }
 
+    // ---- 1️⃣ Send to LeadSquared ----
     const accessKey = process.env.LEADSQUARED_ACCESS_KEY;
     const secretKey = process.env.LEADSQUARED_SECRET_KEY;
 
     if (!accessKey || !secretKey) {
-      return res.status(500).json({ error: 'Server not configured (missing keys)' });
+      console.warn('⚠️ Missing LeadSquared keys — skipping LeadSquared update.');
+    } else {
+      const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.CreateOrUpdate?postUpdatedLead=false&accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+
+      await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
     }
 
-    const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.CreateOrUpdate?postUpdatedLead=false&accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+    // ---- 2️⃣ Send to Google Sheets ----
+    // Replace this URL with your Google Apps Script Web App URL
+    const SHEET_WEBAPP_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEBAPP_URL";
 
-    const apiRes = await fetch(apiUrl, {
+    const sheetPayload = {
+      phone: phoneNumber,
+      status: status || "",
+      feedback: feedback || ""
+    };
+
+    const sheetRes = await fetch(SHEET_WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(sheetPayload)
     });
 
-    const responseJson = await apiRes.json().catch(()=>null);
+    const sheetResponse = await sheetRes.text();
 
-    if (!apiRes.ok) {
-      return res.status(apiRes.status || 500).json({ error: 'Leadsquared error', details: responseJson });
+    if (!sheetRes.ok) {
+      console.error("Google Sheets API error:", sheetResponse);
+      return res.status(500).json({ error: 'Failed to store response in Google Sheets' });
     }
 
-    return res.status(200).json(responseJson);
+    // ---- ✅ Success ----
+    return res.status(200).json({
+      message: 'Data submitted successfully to LeadSquared and Google Sheets',
+      sheetResponse
+    });
+
   } catch (err) {
     console.error('API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
