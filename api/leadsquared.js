@@ -47,7 +47,7 @@ export default async function handler(req, res) {
 
     // ---- 2️⃣ Send to Google Sheets ----
     // Replace this URL with your Google Apps Script Web App URL
-    const SHEET_WEBAPP_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEBAPP_URL";
+    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwiwiE1Dw-mJiuq8iTYGM4hSm0SfwMbhhZgCk_znjOHl1i3Xh6Ioklxiix0zdhElvV74g/exec";
 
     const sheetPayload = {
       phone: phoneNumber,
