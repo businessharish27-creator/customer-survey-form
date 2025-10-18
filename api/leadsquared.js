@@ -17,7 +17,6 @@ export default async function handler(req, res) {
     // Ensure we keep only last 9 digits for the UAE mobile
     const last9 = digitsOnlyIn.slice(-9);
     const phoneNumber = `+971-${last9}`;
-    const digitsOnlyForSearch = `971${last9}`; // e.g. 9715XXXXXXXX (no + or hyphens)
 
     // ---- 0️⃣ Try to retrieve FirstName from LeadSquared using phone ----
     let firstName = '';
@@ -26,7 +25,7 @@ export default async function handler(req, res) {
 
     if (accessKey && secretKey) {
       try {
-        const retrieveUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}&phone=${encodeURIComponent(digitsOnlyForSearch)}`;
+        const retrieveUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}&phone=${encodeURIComponent(phoneNumber)}`;
 
         const getRes = await fetch(retrieveUrl, { method: 'GET' });
         if (getRes.ok) {
