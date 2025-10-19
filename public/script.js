@@ -1,10 +1,14 @@
-/* ===== common helpers ===== */
-function navigateTo(path) { window.location.href = path; }
+/* ===== Common helpers ===== */
+function navigateTo(path) {
+  window.location.href = path;
+}
 function showLoading() {
-  const ol = document.getElementById('loadingOverlay'); if (ol) ol.style.display = 'flex';
+  const ol = document.getElementById('loadingOverlay');
+  if (ol) ol.style.display = 'flex';
 }
 function hideLoading() {
-  const ol = document.getElementById('loadingOverlay'); if (ol) ol.style.display = 'none';
+  const ol = document.getElementById('loadingOverlay');
+  if (ol) ol.style.display = 'none';
 }
 
 /* ===== index.html ===== */
@@ -15,24 +19,25 @@ async function handleSubmit(event) {
 
   const raw = input.value.trim();
   if (!/^[0-9]{9}$/.test(raw)) {
-    alert('Please enter a valid 9-digit phone number (5XXXXXXXX).');
+    alert('Please enter a valid 9-digit UAE mobile number (5XXXXXXXX).');
     return;
   }
 
   const fullPhone = '+971-' + raw;
-  // call API to retrieve existing firstName
   showLoading();
+
   try {
     const res = await fetch('/api/leadsquared', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: fullPhone, action: 'retrieve' })
     });
-    const json = await res.json().catch(()=>({}));
+
+    const json = await res.json().catch(() => ({}));
     const firstName = (json.firstName || '').trim();
     const exists = !!json.exists;
 
-    // store in sessionStorage
+    // Save to sessionStorage for later steps
     sessionStorage.setItem('phoneNumber', fullPhone);
     sessionStorage.setItem('firstName', firstName || '');
     sessionStorage.setItem('isExisting', exists ? '1' : '0');
@@ -42,7 +47,7 @@ async function handleSubmit(event) {
   } catch (err) {
     console.error('Retrieve error', err);
     hideLoading();
-    // Still save phone and default to new lead
+    // Continue with minimal info
     sessionStorage.setItem('phoneNumber', fullPhone);
     sessionStorage.setItem('firstName', '');
     sessionStorage.setItem('isExisting', '0');
@@ -55,10 +60,12 @@ function renderGreeting() {
   const name = sessionStorage.getItem('firstName') || '';
   const isExisting = sessionStorage.getItem('isExisting') === '1';
   const container = document.querySelector('.container');
-  // Insert greeting at top of container (below h1)
+  if (!container) return;
   const h1 = container.querySelector('h1');
-  // Remove existing greeting if any
-  const old = document.getElementById('greetingLine'); if (old) old.remove();
+
+  // Remove previous greeting
+  const old = document.getElementById('greetingLine');
+  if (old) old.remove();
 
   const greet = document.createElement('div');
   greet.id = 'greetingLine';
@@ -66,23 +73,27 @@ function renderGreeting() {
   greet.style.marginBottom = '12px';
   greet.style.fontSize = '1.15rem';
   greet.style.color = '#B4985A';
-  greet.textContent = isExisting && name ? `Hello, ${name}! Share your feedback with us.` : 'Hello, Customer! Share your feedback with us.';
+  greet.textContent =
+    isExisting && name
+      ? `Hello, ${name}! Share your feedback with us.`
+      : 'Hello, Customer! Share your feedback with us.';
   h1.insertAdjacentElement('afterend', greet);
 }
 
-// Call when survey page loads
 if (document.body.classList.contains('page-survey')) {
   document.addEventListener('DOMContentLoaded', renderGreeting);
 }
 
 async function submitSurvey(status) {
   const phone = sessionStorage.getItem('phoneNumber');
-  if (!phone) { alert('Phone number missing. Please start again.'); return navigateTo('index.html'); }
+  if (!phone) {
+    alert('Phone number missing. Please start again.');
+    return navigateTo('index.html');
+  }
 
-  // read firstName from session
   let firstName = sessionStorage.getItem('firstName') || '';
   const isExisting = sessionStorage.getItem('isExisting') === '1';
-  if (!firstName) firstName = isExisting ? '' : 'NO NAME'; // if not existing -> NO NAME
+  if (!firstName) firstName = isExisting ? '' : 'NO NAME';
 
   showLoading();
   try {
@@ -91,8 +102,9 @@ async function submitSurvey(status) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, firstName, status })
     });
-    const json = await res.json().catch(()=>({}));
-    console.log('API Response:', json);
+
+    const json = await res.json().catch(() => ({}));
+    console.log('Survey API Response:', json);
 
     if (!res.ok) {
       hideLoading();
@@ -100,7 +112,6 @@ async function submitSurvey(status) {
       return;
     }
 
-    // store firstName returned by server (if any)
     if (json.firstName) sessionStorage.setItem('firstName', json.firstName);
     if (json.isExisting) sessionStorage.setItem('isExisting', '1');
 
@@ -116,11 +127,18 @@ async function submitSurvey(status) {
 /* ===== feedback.html ===== */
 async function handleFeedbackSubmit(event) {
   event.preventDefault();
-  const feedbackEl = document.getElementById('feedback'); const feedback = feedbackEl?.value.trim();
-  if (!feedback) { alert('Please enter your feedback before submitting.'); return; }
+  const feedbackEl = document.getElementById('feedback');
+  const feedback = feedbackEl?.value.trim();
+  if (!feedback) {
+    alert('Please enter your feedback before submitting.');
+    return;
+  }
 
   const phone = sessionStorage.getItem('phoneNumber');
-  if (!phone) { alert('Phone number missing. Please start again.'); return navigateTo('index.html'); }
+  if (!phone) {
+    alert('Phone number missing. Please start again.');
+    return navigateTo('index.html');
+  }
 
   let firstName = sessionStorage.getItem('firstName') || '';
   const isExisting = sessionStorage.getItem('isExisting') === '1';
@@ -133,10 +151,15 @@ async function handleFeedbackSubmit(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, firstName, status: 'Unsatisfied', feedback })
     });
-    const json = await res.json().catch(()=>({}));
+
+    const json = await res.json().catch(() => ({}));
     console.log('Feedback API Response:', json);
 
-    if (!res.ok) { hideLoading(); alert('Submission failed. Please try again.'); return; }
+    if (!res.ok) {
+      hideLoading();
+      alert('Submission failed. Please try again.');
+      return;
+    }
 
     if (json.firstName) sessionStorage.setItem('firstName', json.firstName);
     if (json.isExisting) sessionStorage.setItem('isExisting', '1');
