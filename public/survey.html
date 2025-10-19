@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Customer Feedback</title>
-  <!-- fontawesome for emoji icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body class="page-survey">
   <div class="container">
     <h1>Customer Feedback</h1>
+    <!-- greeting will be inserted here by script.js (renderGreeting) -->
 
     <div class="emoji-row">
       <div class="emoji-container" onclick="submitSurvey('Satisfied')">
@@ -24,8 +24,6 @@
       </div>
     </div>
   </div>
-
-  <!-- loading overlay (shared style in style.css) -->
   <div id="loadingOverlay" class="overlay" aria-hidden="true">
     <div class="spinner"></div>
     <p>Please wait...</p>

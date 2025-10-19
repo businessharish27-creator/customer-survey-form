@@ -5,64 +5,90 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { phone, status, feedback } = req.body;
+    const { phone, status, feedback, action, firstName: incomingFirstName } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ error: 'Missing phone' });
-    }
+    if (!phone) return res.status(400).json({ error: 'Missing phone' });
 
-    // Normalize phone into +971-XXXXXXXXX format and digitsOnly for searches
-    // Accepts input like "+971-5XXXXXXXX" or "+971-XXXXXXXXX" or "05XXXXXXXX"
-    const digitsOnlyIn = (phone || '').replace(/\D/g, ''); // remove non-digits
-    // Ensure we keep only last 9 digits for the UAE mobile
-    const last9 = digitsOnlyIn.slice(-9);
+    // Normalize phone into +971-XXXXXXXXX (last 9 digits)
+    const digitsOnly = (phone || '').replace(/\D/g, '');
+    const last9 = digitsOnly.slice(-9);
     const phoneNumber = `+971-${last9}`;
 
-    // ---- 0️⃣ Try to retrieve FirstName from LeadSquared using phone ----
-    let firstName = '';
+    // environment keys
     const accessKey = process.env.LEADSQUARED_ACCESS_KEY;
     const secretKey = process.env.LEADSQUARED_SECRET_KEY;
+    const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
 
-    if (accessKey && secretKey) {
+    // Helper: robust retrieve function (reads text then parse)
+    async function retrieveByPhone(p) {
+      if (!accessKey || !secretKey) return { exists: false, firstName: '' };
       try {
-        const retrieveUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}&phone=${encodeURIComponent(phoneNumber)}`;
-
-        const getRes = await fetch(retrieveUrl, { method: 'GET' });
-        if (getRes.ok) {
-          const getJson = await getRes.json().catch(() => null);
-          if (Array.isArray(getJson) && getJson.length > 0) {
-            firstName = getJson[0].FirstName || '';
-          }
-        } else {
-          // Non-fatal: log it and continue
-          const txt = await getRes.text().catch(()=>null);
-          console.warn('RetrieveLeadByPhoneNumber failed:', getRes.status, txt);
+        const url = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}&phone=${encodeURIComponent(p)}`;
+        const r = await fetch(url, { method: 'GET' });
+        const txt = await r.text();
+        let json = null;
+        try { json = JSON.parse(txt); } catch(e){ /* not JSON */ }
+        if (Array.isArray(json) && json.length > 0) {
+          return { exists: true, firstName: json[0].FirstName || '' };
         }
+        // no results
+        return { exists: false, firstName: '' };
       } catch (err) {
-        console.warn('Error calling RetrieveLeadByPhoneNumber:', err?.message || err);
+        console.warn('retrieveByPhone error', err?.message || err);
+        return { exists: false, firstName: '' };
       }
-    } else {
-      console.warn('LeadSquared keys missing; skipping retrieve step.');
     }
 
-    // ---- 1️⃣ Create/Update Lead in LeadSquared (if keys present) ----
-    const payload = [
-      { Attribute: "Phone", Value: phoneNumber },
-      { Attribute: "SearchBy", Value: "Phone" }
-    ];
-    if (firstName) payload.push({ Attribute: "FirstName", Value: firstName });
-    if (status) payload.push({ Attribute: "mx_Customer_Satisfaction_Survey", Value: status });
-    if (feedback) payload.push({ Attribute: "mx_feedback", Value: feedback });
+    // If action === 'retrieve' -> only lookup and return firstName/existence
+    if (action === 'retrieve') {
+      // Try both formats: +971-XXXX and digits (971XXXXXXXX)
+      let result = await retrieveByPhone(phoneNumber);
+      if (!result.exists) {
+        // try digits-only fallback
+        const digitsFallback = `971${last9}`;
+        result = await retrieveByPhone(digitsFallback);
+      }
+      return res.status(200).json({ success: true, firstName: result.firstName || '', exists: !!result.exists });
+    }
 
+    // === Submission path ===
+    // Determine firstName to use for update & sheet:
+    // Prefer incomingFirstName (from sessionStorage). If empty, try to retrieve from LeadSquared,
+    // finally fallback to 'NO NAME'
+    let finalFirstName = (incomingFirstName || '').trim();
+
+    if (!finalFirstName) {
+      // attempt to retrieve from LSQ
+      let r = await retrieveByPhone(phoneNumber);
+      if (!r.exists) {
+        r = await retrieveByPhone(`971${last9}`);
+      }
+      finalFirstName = r.firstName || '';
+    }
+
+    const isExisting = !!finalFirstName;
+    if (!isExisting) finalFirstName = 'NO NAME';
+
+    // 1) Create/Update Lead in LeadSquared (if creds present)
     if (accessKey && secretKey) {
       try {
+        const payload = [
+          { Attribute: "Phone", Value: phoneNumber },
+          { Attribute: "SearchBy", Value: "Phone" },
+          { Attribute: "mx_Customer_Satisfaction_Survey", Value: status || '' },
+          { Attribute: "mx_feedback", Value: feedback || '' }
+        ];
+        // Only add FirstName if it's not NO NAME
+        if (finalFirstName && finalFirstName !== 'NO NAME') {
+          payload.push({ Attribute: "FirstName", Value: finalFirstName });
+        }
+
         const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.CreateOrUpdate?postUpdatedLead=false&accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}`;
         const apiRes = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        // note: don't assume body is JSON; ignore result except errors
         if (!apiRes.ok) {
           const txt = await apiRes.text().catch(()=>null);
           console.warn('Lead.CreateOrUpdate non-ok:', apiRes.status, txt);
@@ -70,17 +96,16 @@ export default async function handler(req, res) {
       } catch (err) {
         console.warn('Error calling Lead.CreateOrUpdate:', err?.message || err);
       }
+    } else {
+      console.warn('LeadSquared keys missing; skipping Lead.CreateOrUpdate.');
     }
 
-    // ---- 2️⃣ Send row to Google Sheets (Apps Script URL) ----
-    // Recommended: store your Apps Script Web App URL in Vercel env on > SHEET_WEBAPP_URL
-    const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
-
+    // 2) Send to Google Sheets
     if (!SHEET_WEBAPP_URL) {
-      console.warn('No SHEET_WEBAPP_URL configured; skipping sheet write.');
+      console.warn('SHEET_WEBAPP_URL not configured; skipping sheet write.');
     } else {
       const sheetPayload = {
-        firstName: firstName || '',
+        firstName: finalFirstName,
         phone: phoneNumber,
         status: status || '',
         feedback: feedback || ''
@@ -92,15 +117,14 @@ export default async function handler(req, res) {
         body: JSON.stringify(sheetPayload)
       });
 
+      const sheetTxt = await sheetRes.text().catch(()=>null);
       if (!sheetRes.ok) {
-        const txt = await sheetRes.text().catch(()=>null);
-        console.error('Google Sheets write failed:', sheetRes.status, txt);
-        return res.status(500).json({ error: 'Failed to store response in Google Sheets', details: txt });
+        console.error('Google Sheets write failed:', sheetRes.status, sheetTxt);
+        return res.status(500).json({ error: 'Failed to store response in Google Sheets', details: sheetTxt });
       }
     }
 
-    // ---- ✅ Success ----
-    return res.status(200).json({ success: true, firstName });
+    return res.status(200).json({ success: true, firstName: finalFirstName, isExisting });
 
   } catch (err) {
     console.error('API error:', err);
