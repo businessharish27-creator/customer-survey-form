@@ -104,9 +104,11 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error('Error writing to Google Sheets:', err);
       }
+    } else {
+      console.warn('SHEET_WEBAPP_URL not configured; skipping sheet write.');
     }
 
-    return res.status(200).json({ success: true, firstName: finalFirstName });
+    return res.status(200).json({ success: true });
   } catch (err) {
     console.error('API error:', err);
     return res.status(500).json({
