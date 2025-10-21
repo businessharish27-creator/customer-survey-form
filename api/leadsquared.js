@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { phone, status, feedback, action, firstName: incomingFirstName } = req.body;
+    const { phone, status, feedback, action } = req.body;
     if (!phone) return res.status(400).json({ error: 'Missing phone' });
 
     // Normalize phone → +971-XXXXXXXXX
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Step 1: Only retrieve (from phone form)
+    // Step 1: Retrieve name (for front-end display only)
     if (action === 'retrieve') {
       let result = await retrieveByPhone(phoneNumber);
       if (!result.exists) result = await retrieveByPhone(`971${last9}`);
@@ -47,18 +47,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Step 2: On submit (survey/feedback)
-    let finalFirstName = (incomingFirstName || '').trim();
+    // Step 2: On form submission (send feedback to LS + GSheet)
+    let result = await retrieveByPhone(phoneNumber);
+    if (!result.exists) result = await retrieveByPhone(`971${last9}`);
 
-    // If name empty, try to retrieve again
-    if (!finalFirstName) {
-      let r = await retrieveByPhone(phoneNumber);
-      if (!r.exists) r = await retrieveByPhone(`971${last9}`);
-      finalFirstName = r.firstName || '';
-    }
-
-    const isExisting = !!finalFirstName;
-    if (!isExisting) finalFirstName = 'NO NAME';
+    const finalFirstName = result.firstName || '';
 
     // --- Update LeadSquared ---
     if (accessKey && secretKey) {
@@ -69,10 +62,6 @@ export default async function handler(req, res) {
           { Attribute: 'mx_Customer_Satisfaction_Survey', Value: status || '' },
           { Attribute: 'mx_feedback', Value: feedback || '' }
         ];
-
-        if (finalFirstName && finalFirstName !== 'NO NAME') {
-          payload.push({ Attribute: 'FirstName', Value: finalFirstName });
-        }
 
         const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.CreateOrUpdate?postUpdatedLead=false&accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}`;
         const apiRes = await fetch(apiUrl, {
@@ -92,10 +81,9 @@ export default async function handler(req, res) {
       console.warn('LeadSquared keys missing; skipping update.');
     }
 
-    // --- Send to Google Sheet ---
+    // --- Send to Google Sheet (without firstName) ---
     if (SHEET_WEBAPP_URL) {
       const sheetPayload = {
-        firstName: finalFirstName,
         phone: phoneNumber,
         status: status || '',
         feedback: feedback || ''
@@ -123,7 +111,7 @@ export default async function handler(req, res) {
       console.warn('SHEET_WEBAPP_URL not configured; skipping sheet write.');
     }
 
-    return res.status(200).json({ success: true, firstName: finalFirstName, isExisting });
+    return res.status(200).json({ success: true, firstName: finalFirstName });
   } catch (err) {
     console.error('API error:', err);
     return res.status(500).json({ error: 'Internal server error', message: err?.message || String(err) });
