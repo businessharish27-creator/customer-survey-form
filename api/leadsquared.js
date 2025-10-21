@@ -8,10 +8,11 @@ export default async function handler(req, res) {
     const { phone, status, feedback, action } = req.body;
     if (!phone) return res.status(400).json({ error: 'Missing phone' });
 
-    // Normalize phone → +971-XXXXXXXXX
+    // Extract digits and normalize formats
     const digitsOnly = (phone || '').replace(/\D/g, '');
     const last9 = digitsOnly.slice(-9);
-    const phoneNumber = `+971-${last9}`;
+    const phoneForCRM = `+971-${last9}`; // ✅ For LeadSquared
+    const phoneForSheet = `971${last9}`;  // ✅ For Google Sheet (plain)
 
     const accessKey = process.env.LEADSQUARED_ACCESS_KEY;
     const secretKey = process.env.LEADSQUARED_SECRET_KEY;
@@ -36,9 +37,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // Step 1: Retrieve name (for front-end display only)
+    // Step 1: Retrieve name (for front-end display)
     if (action === 'retrieve') {
-      let result = await retrieveByPhone(phoneNumber);
+      let result = await retrieveByPhone(phoneForCRM);
       if (!result.exists) result = await retrieveByPhone(`971${last9}`);
       return res.status(200).json({
         success: true,
@@ -47,17 +48,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Step 2: On form submission (send feedback to LS + GSheet)
-    let result = await retrieveByPhone(phoneNumber);
+    // Step 2: On submission — update LeadSquared
+    let result = await retrieveByPhone(phoneForCRM);
     if (!result.exists) result = await retrieveByPhone(`971${last9}`);
-
     const finalFirstName = result.firstName || '';
 
-    // --- Update LeadSquared ---
     if (accessKey && secretKey) {
       try {
         const payload = [
-          { Attribute: 'Phone', Value: phoneNumber },
+          { Attribute: 'Phone', Value: phoneForCRM },
           { Attribute: 'SearchBy', Value: 'Phone' },
           { Attribute: 'mx_Customer_Satisfaction_Survey', Value: status || '' },
           { Attribute: 'mx_feedback', Value: feedback || '' }
@@ -77,14 +76,12 @@ export default async function handler(req, res) {
       } catch (err) {
         console.warn('Error calling Lead.CreateOrUpdate:', err?.message || err);
       }
-    } else {
-      console.warn('LeadSquared keys missing; skipping update.');
     }
 
-    // --- Send to Google Sheet (without firstName) ---
+    // --- Send to Google Sheet (plain 971 format) ---
     if (SHEET_WEBAPP_URL) {
       const sheetPayload = {
-        phone: phoneNumber,
+        phone: phoneForSheet,
         status: status || '',
         feedback: feedback || ''
       };
@@ -95,25 +92,26 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sheetPayload)
         });
-        const sheetTxt = await sheetRes.text().catch(() => null);
 
         if (!sheetRes.ok) {
-          console.error('Google Sheets write failed:', sheetRes.status, sheetTxt);
+          const txt = await sheetRes.text().catch(() => null);
+          console.error('Google Sheets write failed:', sheetRes.status, txt);
           return res.status(500).json({
             error: 'Failed to store response in Google Sheets',
-            details: sheetTxt
+            details: txt
           });
         }
       } catch (err) {
         console.error('Error writing to Google Sheets:', err);
       }
-    } else {
-      console.warn('SHEET_WEBAPP_URL not configured; skipping sheet write.');
     }
 
     return res.status(200).json({ success: true, firstName: finalFirstName });
   } catch (err) {
     console.error('API error:', err);
-    return res.status(500).json({ error: 'Internal server error', message: err?.message || String(err) });
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: err?.message || String(err)
+    });
   }
 }
