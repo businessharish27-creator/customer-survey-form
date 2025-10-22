@@ -56,6 +56,7 @@ export default async function handler(req, res) {
         const payload = [
           { Attribute: 'Phone', Value: phoneForCRM },
           { Attribute: 'SearchBy', Value: 'Phone' },
+          { Attribute: 'OwnerId', Value: System },
           { Attribute: 'mx_Customer_Satisfaction_Survey', Value: status || '' },
           { Attribute: 'mx_feedback', Value: feedback || '' }
         ];
