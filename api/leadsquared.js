@@ -57,7 +57,7 @@ export default async function handler(req, res) {
           { Attribute: 'SearchBy', Value: 'Phone' },
           { Attribute: 'mx_Customer_Satisfaction_Survey', Value: status || '' },
           { Attribute: 'mx_feedback', Value: feedback || '' },
-          { Attribute: 'OwnerId', Value: 'System' } 
+          { Attribute: 'OwnerId', Value: "956ec177-ab3f-11f0-a635-0630e4b64663" } 
         ];
 
         if (existingLeadStage) {
