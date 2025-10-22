@@ -1,4 +1,3 @@
-// api/leadsquared.js
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -41,7 +40,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // --- If the request is just for retrieval (index.html step) ---
+    // --- If only retrieving lead details (initial form load) ---
     if (action === 'retrieve') {
       return res.status(200).json({
         success: true,
@@ -50,15 +49,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // --- Update Lead (preserve stage) ---
+    // --- Update Lead (preserve stage + update owner) ---
     if (accessKey && secretKey) {
       try {
         const payload = [
           { Attribute: 'Phone', Value: phoneForCRM },
           { Attribute: 'SearchBy', Value: 'Phone' },
-          { Attribute: 'OwnerId', Value: System },
           { Attribute: 'mx_Customer_Satisfaction_Survey', Value: status || '' },
-          { Attribute: 'mx_feedback', Value: feedback || '' }
+          { Attribute: 'mx_feedback', Value: feedback || '' },
+          { Attribute: 'OwnerId', Value: 'System' } 
         ];
 
         if (existingLeadStage) {
