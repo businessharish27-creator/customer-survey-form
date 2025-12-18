@@ -15,7 +15,6 @@ export default async function handler(req, res) {
 
     const accessKey = process.env.LEADSQUARED_ACCESS_KEY;
     const secretKey = process.env.LEADSQUARED_SECRET_KEY;
-    const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
 
     let existingLeadStage = null;
     let existingFirstName = '';
@@ -24,8 +23,14 @@ export default async function handler(req, res) {
     // --- Retrieve existing lead info ---
     if (accessKey && secretKey) {
       try {
-        const retrieveUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}&phone=${encodeURIComponent(phoneForCRM)}`;
+        const retrieveUrl =
+          `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber` +
+          `?accessKey=${encodeURIComponent(accessKey)}` +
+          `&secretKey=${encodeURIComponent(secretKey)}` +
+          `&phone=${encodeURIComponent(phoneForCRM)}`;
+
         const getRes = await fetch(retrieveUrl, { method: 'GET' });
+
         if (getRes.ok) {
           const json = await getRes.json().catch(() => []);
           if (Array.isArray(json) && json.length > 0) {
@@ -57,14 +62,21 @@ export default async function handler(req, res) {
           { Attribute: 'SearchBy', Value: 'Phone' },
           { Attribute: 'mx_Customer_Satisfaction_Survey', Value: status || '' },
           { Attribute: 'mx_feedback', Value: feedback || '' },
-          { Attribute: 'OwnerId', Value: "956ec177-ab3f-11f0-a635-0630e4b64663" } 
+          { Attribute: 'OwnerId', Value: '956ec177-ab3f-11f0-a635-0630e4b64663' }
         ];
 
         if (existingLeadStage) {
-          payload.push({ Attribute: 'ProspectStage', Value: existingLeadStage });
+          payload.push({
+            Attribute: 'ProspectStage',
+            Value: existingLeadStage
+          });
         }
 
-        const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.CreateOrUpdate?postUpdatedLead=false&accessKey=${encodeURIComponent(accessKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+        const apiUrl =
+          `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.CreateOrUpdate` +
+          `?postUpdatedLead=false` +
+          `&accessKey=${encodeURIComponent(accessKey)}` +
+          `&secretKey=${encodeURIComponent(secretKey)}`;
 
         const apiRes = await fetch(apiUrl, {
           method: 'POST',
@@ -82,21 +94,24 @@ export default async function handler(req, res) {
     }
 
     // --- Send to Google Sheet (plain 9 digits) ---
-    if (SHEET_WEBAPP_URL) {
-      const sheetPayload = {
-        phone: phoneForSheet,
-        status: status || '',
-        feedback: feedback || ''
-      };
-      try {
-        await fetch(SHEET_WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sheetPayload)
-        });
-      } catch (err) {
-        console.error('Error writing to Google Sheets:', err);
-      }
+    const SHEET_WEBAPP_URL =
+      'https://script.google.com/macros/s/AKfycbxRgDzcscqPGhg_vkiIQfTajKb_A3hTQmajPIp2C8GP5VA_rAoA9NF-ZBrXneKu2C_Qfg/exec';
+
+    const sheetPayload = {
+      phone: phoneForSheet,
+      status: status || '',
+      feedback: feedback || ''
+    };
+
+    try {
+      await fetch(SHEET_WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sheetPayload),
+        redirect: 'follow' // 🔴 REQUIRED for Google Apps Script
+      });
+    } catch (err) {
+      console.error('Error writing to Google Sheets:', err);
     }
 
     return res.status(200).json({
@@ -113,3 +128,4 @@ export default async function handler(req, res) {
     });
   }
 }
+
