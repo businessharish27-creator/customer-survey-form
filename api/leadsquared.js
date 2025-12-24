@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     }
 
     // --- Send to Google Sheet (plain 9 digits) ---
-    const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzu9pMvkTeQ_rLAIV1lJw40Vo18aXmcZb6EI4Vy_Geqx50o-CqINMFssAJiJe4PocHfsg/exec';
+    const SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzqSc5akQnBMb9ujjAibVWXx1_Z6SWSkM0jGlKh8VmoWbmuuZw-zD5Bpc_OPqL0F1vE3A/exec';
 
     const sheetPayload = {
       phone: phoneForSheet,
@@ -105,9 +105,11 @@ export default async function handler(req, res) {
     try {
       await fetch(SHEET_WEBAPP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sheetPayload),
-        redirect: 'follow' // 🔴 REQUIRED for Google Apps Script
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams(sheetPayload).toString(),
+        redirect: 'follow'
       });
     } catch (err) {
       console.error('Error writing to Google Sheets:', err);
